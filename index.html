@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化疗剂量计算器 - 纯前端版</title>
+    <!-- Bootstrap 5 + Bootswatch Cerulean theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.2.3/dist/cerulean/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 20px; }
+        .tab-content { margin-top: 20px; }
+        .warning-text { color: red; font-size: 0.9rem; margin-top: 10px; }
+        .result-box { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 20px; }
+        table th, table td { vertical-align: top; }
+        .version { font-size: 14px; color: gray; margin-top: 5px; }
+        footer { text-align: center; color: gray; margin-top: 30px; }
+        pre { white-space: pre-wrap; background-color: #f8f9fa; padding: 10px; border-radius: 5px; border: 1px solid #ddd; }
+        .btn-primary, .btn-secondary { margin-right: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <h1>化疗剂量计算器</h1>
+        <div class="version">Version: 2.0.260424 </div>
+        <div class="mb-3"></div>
+    </div>
+
+    <ul class="nav nav-tabs" id="mainTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="cis-tab" data-bs-toggle="tab" data-bs-target="#cisplatin" type="button" role="tab">顺铂剂量计算</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="car-tab" data-bs-toggle="tab" data-bs-target="#carboplatin" type="button" role="tab">卡铂剂量计算</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tax-tab" data-bs-toggle="tab" data-bs-target="#paclitaxel" type="button" role="tab">紫杉醇剂量计算</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="mainTabContent">
+        <!-- 顺铂板块 -->
+        <div class="tab-pane fade show active" id="cisplatin" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <h4>体表面积 (BSA) 计算</h4>
+                    <div class="mb-3">
+                        <label class="form-label">身高 (cm):</label>
+                        <input type="number" step="1" class="form-control" id="cis_height" placeholder="50-250">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">体重 (kg):</label>
+                        <input type="number" step="0.1" class="form-control" id="cis_weight" placeholder="10-200">
+                    </div>
+                    <small class="text-muted">BSA公式: BSA (m²) = 0.0061 × 身高(cm) + 0.0128 × 体重(kg) - 0.1529</small>
+                    <hr>
+                    <h4>剂量水平输入</h4>
+                    <div class="mb-3">
+                        <label class="form-label">诱导期剂量 (mg/m²):</label>
+                        <input type="number" step="5" class="form-control" id="cis_dose_induction">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">同步期剂量 (mg/m²):</label>
+                        <input type="number" step="5" class="form-control" id="cis_dose_concurrent">
+                    </div>
+                    <button class="btn btn-primary" id="cis_calc_btn">计算顺铂剂量</button>
+                    <button class="btn btn-secondary" id="cis_reset_btn">重置</button>
+                </div>
+                <div class="col-md-8">
+                    <h3>顺铂剂量计算结果</h3>
+                    <pre id="cis_result_text">请点击"计算顺铂剂量"按钮</pre>
+                    <h4>计算详情</h4>
+                    <table class="table table-bordered" id="cis_details_table">
+                        <thead><tr><th>项目</th><th>数值</th></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="cis_warnings" class="warning-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 卡铂板块 -->
+        <div class="tab-pane fade" id="carboplatin" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">目标AUC (mg/mL·min):</label>
+                        <input type="number" step="0.1" class="form-control" id="car_auc" value="5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">GFR获取方式:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gfrMethod" id="gfr_direct" value="direct">
+                            <label class="form-check-label" for="gfr_direct">直接输入GFR</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gfrMethod" id="gfr_cg" value="cg" checked>
+                            <label class="form-check-label" for="gfr_cg">使用Cockcroft-Gault公式估算</label>
+                        </div>
+                    </div>
+                    <div id="gfr_direct_div" style="display:none;">
+                        <div class="mb-3">
+                            <label class="form-label">GFR (mL/min):</label>
+                            <input type="number" step="0.01" class="form-control" id="car_gfr_direct" value="60">
+                        </div>
+                    </div>
+                    <div id="gfr_cg_div">
+                        <div class="mb-3">
+                            <label class="form-label">年龄 (岁):</label>
+                            <input type="number" step="1" class="form-control" id="car_age">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">体重 (kg):</label>
+                            <input type="number" step="0.1" class="form-control" id="car_weight">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">性别:</label>
+                            <select class="form-select" id="car_sex">
+                                <option value="female">女</option>
+                                <option value="male">男</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">血清肌酐:</label>
+                            <input type="number" step="0.1" class="form-control" id="car_scr">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">肌酐单位:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="scrUnit" id="scr_umol" value="umol" checked>
+                                <label class="form-check-label" for="scr_umol">μmol/L</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="scrUnit" id="scr_mgdl" value="mgdl">
+                                <label class="form-check-label" for="scr_mgdl">mg/dL</label>
+                            </div>
+                        </div>
+                        <div id="cg_formula_preview" class="alert alert-secondary">当前公式: GFR = ((140 - 年龄) × 体重) / (0.81 × 肌酐(μmol/L))</div>
+                    </div>
+                    <button class="btn btn-primary" id="car_calc_btn">计算卡铂剂量</button>
+                    <button class="btn btn-secondary" id="car_reset_btn">重置</button>
+                    <hr>
+                    <small class="text-muted">Calvert公式: 剂量 (mg) = AUC × (GFR + 25)</small>
+                </div>
+                <div class="col-md-8">
+                    <h3>卡铂剂量计算结果</h3>
+                    <pre id="car_result_text">请点击"计算卡铂剂量"按钮</pre>
+                    <h4>计算详情</h4>
+                    <table class="table table-bordered" id="car_details_table">
+                        <thead><tr><th>参数</th><th>数值</th></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="car_warnings" class="warning-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 紫杉醇板块 -->
+        <div class="tab-pane fade" id="paclitaxel" role="tabpanel">
+            <div class="row mt-3">
+                <div class="col-md-4">
+                    <h4>体表面积 (BSA) 计算</h4>
+                    <div class="mb-3">
+                        <label class="form-label">身高 (cm):</label>
+                        <input type="number" step="0.1" class="form-control" id="tax_height">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">体重 (kg):</label>
+                        <input type="number" step="0.1" class="form-control" id="tax_weight">
+                    </div>
+                    <small class="text-muted">BSA公式: BSA (m²) = 0.0061 × 身高(cm) + 0.0128 × 体重(kg) - 0.1529</small>
+                    <hr>
+                    <h4>剂量水平输入</h4>
+                    <div class="mb-3">
+                        <label class="form-label">紫杉醇剂量 (mg/m²):</label>
+                        <input type="number" step="5" class="form-control" id="tax_dose">
+                    </div>
+                    <button class="btn btn-primary" id="tax_calc_btn">计算紫杉醇剂量</button>
+                    <button class="btn btn-secondary" id="tax_reset_btn">重置</button>
+                </div>
+                <div class="col-md-8">
+                    <h3>紫杉醇剂量计算结果</h3>
+                    <pre id="tax_result_text">请点击"计算紫杉醇剂量"按钮</pre>
+                    <h4>计算详情</h4>
+                    <table class="table table-bordered" id="tax_details_table">
+                        <thead><tr><th>项目</th><th>数值</th></thead>
+                        <tbody></tbody>
+                    </table>
+                    <div id="tax_warnings" class="warning-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <hr>
+        <p>Analysis results are for reference only.</p>
+        <p>© Jiangsu Hengrui Pharmaceuticals Co., Ltd. All Rights Reserved.</p>
+    </footer>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // ==================== 公用辅助函数 ====================
+    // 保留两位小数，四舍五入
+    function round2(val) {
+        if (val === null || isNaN(val)) return null;
+        return Math.round(val * 100) / 100;
+    }
+    // 保留一位小数用于体重
+    function round1(val) {
+        if (val === null || isNaN(val)) return null;
+        return Math.round(val * 10) / 10;
+    }
+    // 整数舍入
+    function roundInt(val) {
+        if (val === null || isNaN(val)) return null;
+        return Math.round(val);
+    }
+
+    // 计算 BSA (输入身高cm, 体重kg)
+    function calcBSA(heightCm, weightKg) {
+        return 0.0061 * heightCm + 0.0128 * weightKg - 0.1529;
+    }
+
+    // ==================== 顺铂模块 ====================
+    function calculateCisplatin() {
+        let heightRaw = parseFloat($('#cis_height').val());
+        let weightRaw = parseFloat($('#cis_weight').val());
+        let indDose = parseFloat($('#cis_dose_induction').val());
+        let conDose = parseFloat($('#cis_dose_concurrent').val());
+
+        let warnings = [];
+        let result = {
+            height: null, weight: null, bsa: null,
+            indMg: null, conMg: null, volInd: null, volCon: null,
+            indPerM2: null, conPerM2: null
+        };
+
+        // 身高体重必填校验
+        if (isNaN(heightRaw) || heightRaw <= 0 || isNaN(weightRaw) || weightRaw <= 0) {
+            warnings.push("ERROR：身高或体重未填写，已终止计算");
+            displayCisplatinResult(result, warnings);
+            return;
+        }
+
+        // 身高体重预处理（舍入及警告）
+        let heightRounded = roundInt(heightRaw);
+        let weightRounded = round1(weightRaw);
+        if (Math.abs(heightRaw - heightRounded) > 1e-6) warnings.push("WARNING：身高输入不合法，已做近似处理");
+        if (Math.abs(weightRaw - weightRounded) > 1e-6) warnings.push("WARNING：体重输入不合法，已做近似处理");
+
+        let bsa = calcBSA(heightRounded, weightRounded);
+        bsa = round2(bsa);
+        result.height = heightRounded;
+        result.weight = weightRounded;
+        result.bsa = bsa;
+
+        // 剂量水平有效性检查
+        let indValid = !isNaN(indDose) && indDose > 0;
+        let conValid = !isNaN(conDose) && conDose > 0;
+
+        if (!indValid && !conValid) {
+            warnings.push("ERROR：诱导期或同步期剂量未填写，已终止计算");
+            displayCisplatinResult(result, warnings);
+            return;
+        }
+        if (!indValid) warnings.push("NOTE：诱导期剂量未填写，该部分结果已置为NA");
+        if (!conValid) warnings.push("NOTE：同步期剂量未填写，该部分结果已置为NA");
+
+        if (indValid) {
+            result.indPerM2 = indDose;
+            let indMg = bsa * indDose;
+            result.indMg = round2(indMg);
+            result.volInd = round2(result.indMg * 6 / 30);
+        }
+        if (conValid) {
+            result.conPerM2 = conDose;
+            let conMg = bsa * conDose;
+            result.conMg = round2(conMg);
+            result.volCon = round2(result.conMg * 6 / 30);
+        }
+
+        displayCisplatinResult(result, warnings);
+    }
+
+    function displayCisplatinResult(res, warnings) {
+        // 输出文本
+        let txt = '';
+        if (res.indMg !== null && res.conMg !== null) {
+            txt = `诱导期理论用药总剂量: ${res.indMg.toFixed(2)} mg\n诱导期理论药液体积: ${res.volInd.toFixed(2)} ml\n同步期理论用药总剂量: ${res.conMg.toFixed(2)} mg\n同步期理论药液体积: ${res.volCon.toFixed(2)} ml`;
+        } else if (res.indMg !== null) {
+            txt = `诱导期理论用药总剂量: ${res.indMg.toFixed(2)} mg\n诱导期理论药液体积: ${res.volInd.toFixed(2)} ml\n同步期理论用药总剂量: NA\n同步期理论药液体积: NA`;
+        } else if (res.conMg !== null) {
+            txt = `诱导期理论用药总剂量: NA\n诱导期理论药液体积: NA\n同步期理论用药总剂量: ${res.conMg.toFixed(2)} mg\n同步期理论药液体积: ${res.volCon.toFixed(2)} ml`;
+        } else {
+            txt = "诱导期理论用药总剂量: NA\n诱导期理论药液体积: NA\n同步期理论用药总剂量: NA\n同步期理论药液体积: NA";
+        }
+        $('#cis_result_text').text(txt);
+
+        // 详情表格
+        let rows = '';
+        rows += `<tr><td>身高 (cm)</td><td>${res.height !== null ? res.height : 'NA'}</td></tr>`;
+        rows += `<tr><td>体重 (kg)</td><td>${res.weight !== null ? res.weight.toFixed(1) : 'NA'}</td></tr>`;
+        let bsaStr = (res.bsa !== null) ? `0.0061×${res.height}+0.0128×${res.weight}-0.1529 = ${res.bsa.toFixed(2)} m²` : 'NA';
+        rows += `<tr><td>BSA (m²)</td><td>${bsaStr}</td></tr>`;
+        rows += `<tr><td>诱导期剂量水平 (mg/m²)</td><td>${res.indPerM2 !== null ? res.indPerM2.toFixed(2) : 'NA'}</td></tr>`;
+        let indMgFormula = (res.indMg !== null) ? `${res.bsa.toFixed(2)} × ${res.indPerM2.toFixed(2)} = ${res.indMg.toFixed(2)} mg` : 'NA';
+        rows += `<tr><td>诱导期理论用药总剂量 (mg)</td><td>${indMgFormula}</td></tr>`;
+        let indVolFormula = (res.volInd !== null) ? `${res.indMg.toFixed(2)} × 6/30 = ${res.volInd.toFixed(2)} ml` : 'NA';
+        rows += `<tr><td>诱导期理论药液体积 (ml)</td><td>${indVolFormula}</td></tr>`;
+        rows += `<tr><td>同步期剂量水平 (mg/m²)</td><td>${res.conPerM2 !== null ? res.conPerM2.toFixed(2) : 'NA'}</td></tr>`;
+        let conMgFormula = (res.conMg !== null) ? `${res.bsa.toFixed(2)} × ${res.conPerM2.toFixed(2)} = ${res.conMg.toFixed(2)} mg` : 'NA';
+        rows += `<tr><td>同步期理论用药总剂量 (mg)</td><td>${conMgFormula}</td></tr>`;
+        let conVolFormula = (res.volCon !== null) ? `${res.conMg.toFixed(2)} × 6/30 = ${res.volCon.toFixed(2)} ml` : 'NA';
+        rows += `<tr><td>同步期理论药液体积 (ml)</td><td>${conVolFormula}</td></tr>`;
+        $('#cis_details_table tbody').html(rows);
+
+        let warnHtml = '';
+        if (warnings.length > 0) {
+            warnHtml = '<ul>' + warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+        }
+        $('#cis_warnings').html(warnHtml);
+    }
+
+    $('#cis_calc_btn').click(calculateCisplatin);
+    $('#cis_reset_btn').click(function() {
+        $('#cis_height, #cis_weight, #cis_dose_induction, #cis_dose_concurrent').val('');
+        $('#cis_result_text').text('请点击"计算顺铂剂量"按钮');
+        $('#cis_details_table tbody').empty();
+        $('#cis_warnings').empty();
+    });
+
+    // ==================== 卡铂模块 ====================
+    function updateGfrFields() {
+        let method = $('input[name="gfrMethod"]:checked').val();
+        if (method === 'direct') {
+            $('#gfr_direct_div').show();
+            $('#gfr_cg_div').hide();
+        } else {
+            $('#gfr_direct_div').hide();
+            $('#gfr_cg_div').show();
+            updateCgFormula();
+        }
+    }
+    function updateCgFormula() {
+        let unit = $('input[name="scrUnit"]:checked').val();
+        let sex = $('#car_sex').val();
+        let formula = '';
+        if (unit === 'mgdl') {
+            formula = 'GFR = ((140 - 年龄) × 体重) / (72 × 血肌酐(mg/dL))';
+        } else {
+            formula = 'GFR = ((140 - 年龄) × 体重) / (0.81 × 血肌酐(μmol/L))';
+        }
+        if (sex === 'female') formula += ' × 0.85 (女性因子)';
+        $('#cg_formula_preview').text('当前公式: ' + formula);
+    }
+
+    $('input[name="gfrMethod"]').change(updateGfrFields);
+    $('input[name="scrUnit"]').change(updateCgFormula);
+    $('#car_sex').change(updateCgFormula);
+    updateGfrFields(); // 初始化
+
+    function calculateCarboplatin() {
+        let auc = parseFloat($('#car_auc').val());
+        let method = $('input[name="gfrMethod"]:checked').val();
+        let warnings = [];
+        let result = {
+            auc: null, gfr: null, doseMg: null, vol: null,
+            method: method, gfrDirect: null, age: null, weight: null,
+            sex: $('#car_sex').val(), scr: null, scrUnit: $('input[name="scrUnit"]:checked').val()
+        };
+
+        if (isNaN(auc) || auc <= 0) {
+            warnings.push("ERROR：目标AUC未填写，已终止计算");
+            displayCarboplatinResult(result, warnings);
+            return;
+        }
+        result.auc = round2(auc);
+
+        let gfr = null;
+        if (method === 'direct') {
+            let gfrDirect = parseFloat($('#car_gfr_direct').val());
+            if (isNaN(gfrDirect) || gfrDirect <= 0) {
+                warnings.push("ERROR：GFR未填写，已终止计算");
+                displayCarboplatinResult(result, warnings);
+                return;
+            }
+            gfr = gfrDirect;
+            result.gfrDirect = gfr;
+        } else {
+            // Cockcroft-Gault
+            let ageRaw = parseFloat($('#car_age').val());
+            let weightRaw = parseFloat($('#car_weight').val());
+            let scrRaw = parseFloat($('#car_scr').val());
+            if (isNaN(ageRaw) || ageRaw <= 0 || isNaN(weightRaw) || weightRaw <= 0 || isNaN(scrRaw) || scrRaw <= 0) {
+                warnings.push("ERROR：年龄、体重或血清肌酐未填写，已终止计算");
+                displayCarboplatinResult(result, warnings);
+                return;
+            }
+            let ageRounded = roundInt(ageRaw);
+            let weightRounded = round1(weightRaw);
+            if (Math.abs(ageRaw - ageRounded) > 1e-6) warnings.push("WARNING：年龄输入不合法，已做近似处理");
+            if (Math.abs(weightRaw - weightRounded) > 1e-6) warnings.push("WARNING：体重输入不合法，已做近似处理");
+
+            let scr = scrRaw;
+            if (result.scrUnit === 'umol') {
+                gfr = ((140 - ageRounded) * weightRounded) / (0.81 * scr);
+            } else {
+                gfr = ((140 - ageRounded) * weightRounded) / (72 * scr);
+            }
+            if (result.sex === 'female') gfr *= 0.85;
+            gfr = round2(gfr);
+
+            result.age = ageRounded;
+            result.weight = weightRounded;
+            result.scr = scr;
+        }
+
+        result.gfr = gfr;
+        let dose = auc * (gfr + 25);
+        result.doseMg = round2(dose);
+        result.vol = round2(result.doseMg * 10 / 100);
+        displayCarboplatinResult(result, warnings);
+    }
+
+    function displayCarboplatinResult(res, warnings) {
+        let txt = (res.doseMg !== null) ? `理论用药总剂量: ${res.doseMg.toFixed(2)} mg\n理论药液体积: ${res.vol.toFixed(2)} ml` : "理论用药总剂量: NA\n理论药液体积: NA";
+        $('#car_result_text').text(txt);
+
+        let rows = '';
+        rows += `<tr><td>目标AUC</td><td>${res.auc !== null ? res.auc.toFixed(2) + ' mg/mL·min' : 'NA'}</td></tr>`;
+        rows += `<tr><td>年龄 (岁)</td><td>${res.age !== null ? res.age : 'NA'}</td></tr>`;
+        rows += `<tr><td>体重 (kg)</td><td>${res.weight !== null ? res.weight.toFixed(1) : 'NA'}</td></tr>`;
+
+        let gfrStr = '';
+        if (res.method === 'direct') {
+            gfrStr = (res.gfr !== null) ? `直接输入GFR = ${res.gfrDirect.toFixed(2)} mL/min` : 'NA';
+        } else {
+            if (res.gfr !== null) {
+                let unitLabel = (res.scrUnit === 'mgdl') ? 'mg/dL' : 'μmol/L';
+                let formulaText = (res.scrUnit === 'mgdl') ?
+                    `((140-${res.age}) × ${res.weight}) / (72 × ${res.scr})` :
+                    `((140-${res.age}) × ${res.weight}) / (0.81 × ${res.scr})`;
+                if (res.sex === 'female') formulaText += ' × 0.85';
+                gfrStr = `Cockcroft-Gault: ${formulaText} = ${res.gfr.toFixed(2)} mL/min`;
+            } else {
+                gfrStr = 'NA';
+            }
+        }
+        rows += `<tr><td>GFR</td><td>${gfrStr}</td></tr>`;
+        rows += `<tr><td>血清肌酐</td><td>${(res.scr !== null) ? res.scr + ' ' + (res.scrUnit==='mgdl'?'mg/dL':'μmol/L') : '未使用'}</td></tr>`;
+        let doseFormula = (res.doseMg !== null) ? `${res.auc.toFixed(2)} × (${res.gfr.toFixed(2)} + 25) = ${res.doseMg.toFixed(2)} mg` : 'NA';
+        rows += `<tr><td>剂量计算</td><td>${doseFormula}</td></tr>`;
+        let volFormula = (res.vol !== null) ? `${res.doseMg.toFixed(2)} × 10/100 = ${res.vol.toFixed(2)} ml` : 'NA';
+        rows += `<tr><td>理论药液体积 (ml)</td><td>${volFormula}</td></tr>`;
+        $('#car_details_table tbody').html(rows);
+
+        let warnHtml = '';
+        if (warnings.length > 0) {
+            warnHtml = '<ul>' + warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+        }
+        $('#car_warnings').html(warnHtml);
+    }
+
+    $('#car_calc_btn').click(calculateCarboplatin);
+    $('#car_reset_btn').click(function() {
+        $('#car_auc').val(5);
+        $('#car_gfr_direct').val(60);
+        $('#car_age, #car_weight, #car_scr').val('');
+        $('#car_sex').val('female');
+        $('input[name="scrUnit"][value="umol"]').prop('checked', true);
+        $('input[name="gfrMethod"][value="cg"]').prop('checked', true);
+        updateGfrFields();
+        $('#car_result_text').text('请点击"计算卡铂剂量"按钮');
+        $('#car_details_table tbody').empty();
+        $('#car_warnings').empty();
+    });
+
+    // ==================== 紫杉醇模块 ====================
+    function calculatePaclitaxel() {
+        let heightRaw = parseFloat($('#tax_height').val());
+        let weightRaw = parseFloat($('#tax_weight').val());
+        let dosePerM2 = parseFloat($('#tax_dose').val());
+        let warnings = [];
+        let result = { height: null, weight: null, bsa: null, doseMg: null, vol: null, dosePerM2: null };
+
+        if (isNaN(heightRaw) || heightRaw <= 0 || isNaN(weightRaw) || weightRaw <= 0) {
+            warnings.push("ERROR：身高或体重未填写，已终止计算");
+            displayPaclitaxelResult(result, warnings);
+            return;
+        }
+        if (isNaN(dosePerM2) || dosePerM2 <= 0) {
+            warnings.push("ERROR：紫杉醇剂量未填写，已终止计算");
+            displayPaclitaxelResult(result, warnings);
+            return;
+        }
+
+        let heightRounded = roundInt(heightRaw);
+        let weightRounded = round1(weightRaw);
+        if (Math.abs(heightRaw - heightRounded) > 1e-6) warnings.push("WARNING：身高输入不合法，已做近似处理");
+        if (Math.abs(weightRaw - weightRounded) > 1e-6) warnings.push("WARNING：体重输入不合法，已做近似处理");
+
+        let bsa = calcBSA(heightRounded, weightRounded);
+        bsa = round2(bsa);
+        let doseMg = bsa * dosePerM2;
+        result.doseMg = round2(doseMg);
+        result.vol = round2(result.doseMg * 5 / 30);
+        result.bsa = bsa;
+        result.dosePerM2 = dosePerM2;
+        result.height = heightRounded;
+        result.weight = weightRounded;
+
+        displayPaclitaxelResult(result, warnings);
+    }
+
+    function displayPaclitaxelResult(res, warnings) {
+        let txt = (res.doseMg !== null) ? `理论用药总剂量: ${res.doseMg.toFixed(2)} mg\n理论药液体积: ${res.vol.toFixed(2)} ml` : "理论用药总剂量: NA\n理论药液体积: NA";
+        $('#tax_result_text').text(txt);
+
+        let rows = '';
+        rows += `<tr><td>身高 (cm)</td><td>${res.height !== null ? res.height : 'NA'}</td></tr>`;
+        rows += `<tr><td>体重 (kg)</td><td>${res.weight !== null ? res.weight.toFixed(1) : 'NA'}</td></tr>`;
+        let bsaStr = (res.bsa !== null) ? `0.0061×${res.height}+0.0128×${res.weight}-0.1529 = ${res.bsa.toFixed(2)} m²` : 'NA';
+        rows += `<tr><td>BSA (m²)</td><td>${bsaStr}</td></tr>`;
+        rows += `<tr><td>紫杉醇剂量水平 (mg/m²)</td><td>${res.dosePerM2 !== null ? res.dosePerM2.toFixed(2) : 'NA'}</td></tr>`;
+        let doseFormula = (res.doseMg !== null) ? `${res.bsa.toFixed(2)} × ${res.dosePerM2.toFixed(2)} = ${res.doseMg.toFixed(2)} mg` : 'NA';
+        rows += `<tr><td>理论用药总剂量 (mg)</td><td>${doseFormula}</td></tr>`;
+        let volFormula = (res.vol !== null) ? `${res.doseMg.toFixed(2)} × 5/30 = ${res.vol.toFixed(2)} ml` : 'NA';
+        rows += `<tr><td>理论药液体积 (ml)</td><td>${volFormula}</td></tr>`;
+        $('#tax_details_table tbody').html(rows);
+
+        let warnHtml = '';
+        if (warnings.length > 0) {
+            warnHtml = '<ul>' + warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+        }
+        $('#tax_warnings').html(warnHtml);
+    }
+
+    $('#tax_calc_btn').click(calculatePaclitaxel);
+    $('#tax_reset_btn').click(function() {
+        $('#tax_height, #tax_weight, #tax_dose').val('');
+        $('#tax_result_text').text('请点击"计算紫杉醇剂量"按钮');
+        $('#tax_details_table tbody').empty();
+        $('#tax_warnings').empty();
+    });
+});
+</script>
+</body>
+</html>
